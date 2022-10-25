@@ -1,0 +1,8 @@
+mutation userLogIn($email: String!, $password: String!, $pincode: String) {
+  userLogIn(email: $email, password: $password, pincode: $pincode) {
+    accesstoken
+    refreshtoken
+    code
+    message
+  }
+}
