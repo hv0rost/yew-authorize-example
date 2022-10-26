@@ -3,20 +3,20 @@ use yewdux::prelude::*;
 use std::rc::Rc;
 use gloo::console::log;
 use web_sys::HtmlInputElement;
-
 use graphql_client::GraphQLQuery;
 use std::fmt::Debug;
 
+use yew_router::prelude::*;
+use crate::router::Route;
 
-
-use crate::{store::store::AuthStore, util::common::{fetch_gql_data, FetchState}};
+use crate::{store::store::AuthStore, util::common::fetch_gql_data};
 
 pub enum Msg {
     Store(Rc<AuthStore>),
     Username(String),
     Password(String),
     SendRequest,
-    SetState(FetchState<serde_json::Value>),
+    SetState(Option<serde_json::Value>),
 }
 
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -50,6 +50,7 @@ impl Component for AuthForm {
         let dispatch = Dispatch::<AuthStore>::subscribe(ctx.link().callback(Msg::Store));
         Self { dispatch }
     }
+
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Store(_) => false,
@@ -64,20 +65,29 @@ impl Component for AuthForm {
             Msg::SendRequest => {
                 let username = self.dispatch.get().username.as_deref().unwrap_or_default().to_string();
                 let password = self.dispatch.get().password.as_deref().unwrap_or_default().to_string();
-                ctx.link().send_future(async {
+                ctx.link().send_future(async{
                     match fetch_gql_data(&query_str(username, password).await).await
                     {
                         Ok(data) => {
-                            log!(data.to_string());
-                            Msg::SetState(FetchState::Success(data))
+                            log!(serde_json::to_string_pretty(&data).unwrap());
+                            Msg::SetState(Some(data))
                         },
-                        Err(err) => Msg::SetState(FetchState::Failed(err)),
+                        Err(err) => {
+                            log!(err.to_string());
+                            Msg::SetState(Some(serde_json::Value::Null))
+                        }
                     }
                 });
-                
                 false
             }
-            Msg::SetState(_) => false,
+            Msg::SetState(data) => {
+                self.dispatch.reduce_mut(|store| store.response = Some(data.clone().unwrap()));
+                if !(data.unwrap().is_null()){
+                    let history = ctx.link().history().unwrap();
+                    history.push(Route::Users);
+                }
+                true   
+            },
         }
     }
 
@@ -96,7 +106,6 @@ impl Component for AuthForm {
         let password_onchange = ctx.link().callback(|e : Event|{
             let target = e.target_unchecked_into::<HtmlInputElement>();
             let password = target.value();
-            log!(password.clone());
             Msg::Password(password)
         });
 
@@ -105,7 +114,7 @@ impl Component for AuthForm {
                 <div class="container">
                 <div class="screen">
                     <div class="screen__content">
-                        <form class="login" {onsubmit}>
+                        <form class="login" {onsubmit} autocomplete ="on">
                             <div class="login__field">
                                 <i class="login__icon fas fa-user"></i>
                                 <input type="text" class="login__input" placeholder="User name / Email" onchange={username_onchange}/>

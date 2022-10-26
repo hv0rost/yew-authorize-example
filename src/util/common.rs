@@ -27,12 +27,12 @@ impl From<JsValue> for FetchError {
     }
 }
 
-pub enum FetchState<T> {
+/* pub enum FetchState<T> {
     //NotFetching,
     //Fetching,
     Success(T),
     Failed(FetchError),
-}
+} */
 
 pub async fn fetch_gql_data(query: &str) -> Result<Value, FetchError> {
     let mut req_opts = RequestInit::new();

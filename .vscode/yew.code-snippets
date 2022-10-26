@@ -1,0 +1,38 @@
+{
+	"Create new Yew component": {
+		"scope": "rust",
+		"prefix": "yew",
+		"body": [
+			"use std::rc::Rc;",
+			"",
+			"use yewdux::prelude::*;",
+			"use yew::prelude::*;",
+			"",
+			"pub struct ${0} {",
+			"    dispatch: Dispatch<${1}>",
+			"}",
+			"",
+			"pub enum Msg {",
+			"    Store(Rc<${1}>),",
+			"}",
+			"",
+			"impl Component for ${0} {",
+			"    type Message = Msg;",
+			"    type Properties = ();",
+			"",
+			"    fn create(ctx: &Context<Self>) -> Self {",
+			"        let dispatch = Dispatch::<UserStore>::subscribe(ctx.link().callback(Msg::Store));",
+			"           Self { dispatch }",
+			"    }",
+			"",
+			"    fn view(&self, ctx: &Context<Self>) -> Html {",
+			"        html! {",
+			"            <>",            
+			"            </>",
+			"        }",
+			"    }",
+			"}",
+		],
+		"description": "Create new Yew component"
+	}
+}
