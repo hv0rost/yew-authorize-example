@@ -4,7 +4,7 @@ use std::{
 };
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Request, RequestInit, RequestMode, Response};
+use web_sys::{Request, RequestInit, RequestMode, Response, Headers};
 use serde_json::{Value, from_str};
 
 
@@ -34,11 +34,17 @@ impl From<JsValue> for FetchError {
     Failed(FetchError),
 } */
 
-pub async fn fetch_gql_data(query: &str) -> Result<Value, FetchError> {
+pub async fn fetch_gql_data(query: &str, token : String) -> Result<Value, FetchError> {
+    let bearer = format!("Bearer {}", token);
+    let headers = Headers::new().unwrap();
+    headers.set("Authorization", &bearer).unwrap();
+
     let mut req_opts = RequestInit::new();
     req_opts.method("POST");
     req_opts.body(Some(&JsValue::from_str(query)));
     req_opts.mode(RequestMode::Cors);
+    req_opts.headers(&headers);
+
 
     let request = Request::new_with_str_and_init("http://127.0.0.1:3030/graphql", &req_opts)?;
 

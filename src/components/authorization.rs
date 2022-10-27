@@ -9,14 +9,21 @@ use std::fmt::Debug;
 use yew_router::prelude::*;
 use crate::router::Route;
 
-use crate::{store::store::AuthStore, util::common::fetch_gql_data};
+use crate::{store::store::{AuthStore, Token}, util::common::fetch_gql_data};
+
+pub struct  AuthForm {
+    dispatch: Dispatch<AuthStore>,
+    creditianals: Dispatch<Token>
+}
 
 pub enum Msg {
     Store(Rc<AuthStore>),
+    Token(Rc<Token>),
     Username(String),
     Password(String),
     SendRequest,
-    SetState(Option<serde_json::Value>),
+    Success(Option<serde_json::Value>),
+    Error(String),
 }
 
 // The paths are relative to the directory where your `Cargo.toml` is located.
@@ -29,9 +36,6 @@ pub enum Msg {
 )]
 pub struct UserLogIn;
 
-pub struct  AuthForm {
-    dispatch: Dispatch<AuthStore>
-}
 
 async fn query_str(email: String, password: String,) -> String {
     let build_query =
@@ -48,12 +52,15 @@ impl Component for AuthForm {
 
     fn create(ctx: &Context<Self>) -> Self {
         let dispatch = Dispatch::<AuthStore>::subscribe(ctx.link().callback(Msg::Store));
-        Self { dispatch }
+        let creditianals = Dispatch::<Token>::subscribe(ctx.link().callback(Msg::Token));
+
+        Self { dispatch, creditianals }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Store(_) => false,
+            Msg::Token(_) => false,
             Msg::Username(username) => {
                 self.dispatch.reduce_mut(|store| store.username = Some(username));
                 false
@@ -66,27 +73,32 @@ impl Component for AuthForm {
                 let username = self.dispatch.get().username.as_deref().unwrap_or_default().to_string();
                 let password = self.dispatch.get().password.as_deref().unwrap_or_default().to_string();
                 ctx.link().send_future(async{
-                    match fetch_gql_data(&query_str(username, password).await).await
+                    match fetch_gql_data(&query_str(username, password).await, "".to_string()).await
                     {
                         Ok(data) => {
-                            log!(serde_json::to_string_pretty(&data).unwrap());
-                            Msg::SetState(Some(data))
+                            Msg::Success(Some(data))
                         },
                         Err(err) => {
-                            log!(err.to_string());
-                            Msg::SetState(Some(serde_json::Value::Null))
+                            Msg::Error(err.to_string())
                         }
                     }
                 });
                 false
             }
-            Msg::SetState(data) => {
-                self.dispatch.reduce_mut(|store| store.response = Some(data.clone().unwrap()));
+            Msg::Success(data) => {
+                log!(serde_json::to_string_pretty(&data).unwrap());
+                let token : Token = serde_json::from_value(data.clone().unwrap()["userLogIn"].clone()).unwrap();
+                self.creditianals.reduce_mut(|store| store.accesstoken = token.accesstoken);
+                
                 if !(data.unwrap().is_null()){
                     let history = ctx.link().history().unwrap();
                     history.push(Route::Users);
                 }
                 true   
+            },
+            Msg::Error(err) => {
+                log!(err);
+                false
             },
         }
     }
